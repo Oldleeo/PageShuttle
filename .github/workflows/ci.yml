@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: JavaScript tests
+        shell: pwsh
+        run: |
+          node tests/parser.test.cjs
+          node tests/state-utils.test.cjs
+          node tests/location-override.test.cjs
+
+      - name: Build native projects
+        shell: pwsh
+        run: |
+          dotnet restore host/ChromeProxyHost.csproj --configfile NuGet.Config
+          dotnet restore updater/PageShuttleUpdater.csproj --configfile NuGet.Config
+          dotnet build host/ChromeProxyHost.csproj -c Release --no-restore
+          dotnet build updater/PageShuttleUpdater.csproj -c Release --no-restore

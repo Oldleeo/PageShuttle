@@ -1,0 +1,17 @@
+name: 功能建议
+description: 提议与 Chrome 独立代理相关的新功能
+title: "[Feature] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 想解决的问题
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: 建议方案
+    validations:
+      required: true

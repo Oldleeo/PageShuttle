@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>页梭·Chrome 专属代理</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 2.4 20 5.9v5.3c0 5.1-3.4 9.3-8 10.4-4.6-1.1-8-5.3-8-10.4V5.9L12 2.4Z"/><path d="m8.4 12 2.2 2.2 5-5"/></svg>
+        </div>
+        <div>
+          <h1>页梭 <span class="brand-en">PAGE SHUTTLE</span></h1>
+          <p>Chrome 专属代理·只改变当前浏览器</p>
+        </div>
+      </div>
+      <button id="settingsButton" class="icon-button" title="设置" aria-label="设置">
+        <svg viewBox="0 0 24 24"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg>
+      </button>
+    </header>
+
+    <section id="connectionCard" class="connection-card paused">
+      <div class="connection-row">
+        <div class="connection-copy">
+          <span class="status-dot"></span>
+          <div>
+            <strong id="statusTitle">已暂停</strong>
+            <span id="statusSubtitle">网页正在使用原网络</span>
+          </div>
+        </div>
+        <button id="powerButton" class="power-button">
+          <svg viewBox="0 0 24 24"><path d="M12 2v10M5.6 5.6a9 9 0 1 0 12.8 0"/></svg>
+          <span>启动</span>
+        </button>
+      </div>
+      <div class="network-facts">
+        <button id="ipButton" class="fact-button" title="检测出口 IP"><small>出口 IP</small><b>点击检测</b></button>
+        <div class="fact-divider"></div>
+        <div class="fact-location"><small>浏览器环境</small><b id="locationSummary">自动跟随 IP</b></div>
+      </div>
+    </section>
+
+    <section id="settingsPanel" class="settings-panel" hidden>
+      <div class="section-title"><h2>代理设置</h2><span>仅影响 Chrome</span></div>
+      <label class="field-label" for="routingMode">代理范围</label>
+      <select id="routingMode" class="control">
+        <option value="global">全部网页走代理</option>
+        <option value="domains">仅指定网站走代理</option>
+      </select>
+      <div id="domainsField" hidden>
+        <label class="field-label" for="domains">域名（每行一个）</label>
+        <textarea id="domains" class="control compact-area" placeholder="google.com&#10;*.openai.com"></textarea>
+      </div>
+      <label class="switch-row"><span><b>防止 WebRTC 泄漏</b><small>禁止未经代理的 UDP</small></span><input id="protectWebRtc" type="checkbox"><i></i></label>
+      <label class="switch-row"><span><b>本机与局域网直连</b><small>不代理 localhost 和内网地址</small></span><input id="bypassLocal" type="checkbox"><i></i></label>
+
+      <div class="settings-separator"></div>
+      <div class="section-title"><h2>浏览器环境</h2><span>仅网页可见，不改 Windows</span></div>
+      <label class="field-label" for="locationMode">环境模式</label>
+      <select id="locationMode" class="control">
+        <option value="auto">自动跟随代理出口 IP</option>
+        <option value="manual">手动指定国家与位置</option>
+        <option value="off">不修改网页环境</option>
+      </select>
+      <div id="manualLocationFields" hidden>
+        <div class="coordinate-grid">
+          <label><span>纬度</span><input id="manualLatitude" class="control" inputmode="decimal" placeholder="1.3521"></label>
+          <label><span>经度</span><input id="manualLongitude" class="control" inputmode="decimal" placeholder="103.8198"></label>
+        </div>
+        <div class="coordinate-grid label-grid">
+          <label><span>位置名称</span><input id="manualLabel" class="control" placeholder="新加坡"></label>
+          <label><span>精度（米）</span><input id="manualAccuracy" class="control" inputmode="numeric" placeholder="1000"></label>
+        </div>
+        <div class="coordinate-grid environment-grid">
+          <label><span>国家代码</span><input id="manualCountryCode" class="control" maxlength="2" placeholder="SG"></label>
+          <label><span>网页语言</span><input id="manualLocale" class="control" placeholder="en-SG"></label>
+        </div>
+        <label class="field-label" for="manualTimezone">IANA 时区</label>
+        <input id="manualTimezone" class="control" placeholder="Asia/Singapore">
+      </div>
+      <label class="switch-row"><span><b>网页时间跟随国家</b><small>修改网页读取到的时区和本地时间</small></span><input id="matchTimezone" type="checkbox"><i></i></label>
+      <label class="switch-row"><span><b>网站识别为当地语言</b><small>页梭界面仍为中文，不修改 Chrome 菜单</small></span><input id="matchLanguage" type="checkbox"><i></i></label>
+      <label class="field-label" for="fontPrivacyMode">字体指纹保护</label>
+      <select id="fontPrivacyMode" class="control">
+        <option value="strict">严格：隐藏中文字体并覆盖尺寸探测</option>
+        <option value="balanced">均衡：隐藏字体 API 与 Canvas 探测</option>
+        <option value="off">关闭字体指纹保护</option>
+      </select>
+      <p id="locationDetail" class="location-detail"></p>
+      <p class="privacy-note">网页显示字体保持原样；该功能只调整网站读取到的环境特征。复杂指纹仍可能通过其他信号推断真实系统。</p>
+      <button id="saveSettingsButton" class="secondary-button full">保存设置</button>
+
+      <div class="settings-separator"></div>
+      <div class="section-title"><h2>软件更新</h2><span id="currentVersion">当前 v0.5.0</span></div>
+      <div class="update-card">
+        <div class="update-copy">
+          <b id="updateTitle">检查页梭新版本</b>
+          <small id="updateDescription">通过 GitHub Releases 获取签名发行包</small>
+        </div>
+        <ul id="updateNotes" class="update-notes" hidden></ul>
+        <div class="update-actions">
+          <a id="releaseLink" class="text-button" href="https://github.com/Oldleeo/PageShuttle/releases" target="_blank" rel="noreferrer">版本记录</a>
+          <button id="checkUpdateButton" type="button" class="ghost-button">检查更新</button>
+          <button id="installUpdateButton" type="button" class="primary-button" hidden>立即更新</button>
+        </div>
+      </div>
+    </section>
+
+    <main>
+      <div class="section-title nodes-heading">
+        <div><h2>代理节点</h2><span id="nodeCount">0 个</span></div>
+        <div class="heading-actions">
+          <button id="groupsButton" class="text-button">收藏分组</button>
+          <button id="importButton" class="secondary-button">
+            <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 20h14"/></svg>
+            导入
+          </button>
+        </div>
+      </div>
+      <div class="node-tools">
+        <label class="search-box">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg>
+          <input id="nodeSearch" type="search" placeholder="搜索节点、国家或服务器">
+        </label>
+        <select id="groupFilter" class="group-filter" aria-label="收藏分组筛选">
+          <option value="all">全部节点</option>
+          <option value="favorites">全部收藏</option>
+        </select>
+      </div>
+      <div id="nodeList" class="node-list"></div>
+      <div id="emptyState" class="empty-state">
+        <div class="empty-icon"><svg viewBox="0 0 24 24"><path d="M7.5 12a4.5 4.5 0 0 1 4.5-4.5h2M16.5 12A4.5 4.5 0 0 1 12 16.5h-2M9 15l6-6"/></svg></div>
+        <strong id="emptyTitle">还没有代理节点</strong>
+        <span id="emptyDescription">导入 Clash YAML 或粘贴 VLESS 链接</span>
+        <button id="emptyImportButton" class="primary-button">导入第一个节点</button>
+      </div>
+    </main>
+
+    <footer class="copyright">
+      <a href="https://x.com/oldleeoo" target="_blank" rel="noreferrer" title="访问老李Oldlee 的 X 主页">
+        <span>© 2026 老李Oldlee</span><strong>@oldleeoo ↗</strong>
+      </a>
+      <span>v0.5.0</span>
+    </footer>
+  </div>
+
+  <dialog id="importDialog">
+    <form method="dialog" class="dialog-card">
+      <div class="dialog-head">
+        <div><h2>导入代理</h2><p>支持 Clash YAML、订阅地址和常用节点链接</p></div>
+        <button value="cancel" class="icon-button" aria-label="关闭"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+      </div>
+      <div class="tabs" role="tablist">
+        <button type="button" class="tab active" data-tab="text">粘贴内容</button>
+        <button type="button" class="tab" data-tab="url">订阅地址</button>
+        <button type="button" class="tab" data-tab="file">本地文件</button>
+      </div>
+      <div class="tab-panel active" data-panel="text"><textarea id="importText" class="control import-area" placeholder="粘贴 vless://...&#10;&#10;也可以粘贴完整 Clash YAML 内容"></textarea></div>
+      <div class="tab-panel" data-panel="url"><input id="subscriptionUrl" class="control" type="url" placeholder="https://example.com/subscription"><p class="field-help">订阅内容仅在 Chrome 内解析，不会上传。</p></div>
+      <div class="tab-panel" data-panel="file">
+        <label class="file-drop" for="configFile">
+          <svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6Z"/><path d="M14 3v6h6M12 17v-5m0 0-2 2m2-2 2 2"/></svg>
+          <strong>选择 YAML 或 TXT 文件</strong><span id="fileName">.yaml / .yml / .txt / .conf</span>
+        </label>
+        <input id="configFile" type="file" accept=".yaml,.yml,.txt,.conf,text/plain,application/yaml">
+      </div>
+      <div id="importError" class="form-error" hidden></div>
+      <div class="dialog-actions"><button value="cancel" class="ghost-button">取消</button><button id="confirmImportButton" type="button" class="primary-button">开始导入</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="favoriteDialog">
+    <form method="dialog" class="dialog-card small-dialog">
+      <div class="dialog-head">
+        <div><h2>收藏节点</h2><p id="favoriteNodeName">选择收藏分组</p></div>
+        <button value="cancel" class="icon-button" aria-label="关闭"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+      </div>
+      <label class="field-label" for="favoriteGroupSelect">收藏到</label>
+      <select id="favoriteGroupSelect" class="control"></select>
+      <div class="inline-create"><input id="quickGroupName" class="control" maxlength="30" placeholder="新分组名称"><button id="quickCreateGroup" type="button" class="secondary-button">新建</button></div>
+      <div class="dialog-actions spread"><button id="removeFavoriteButton" type="button" class="danger-text">取消收藏</button><div><button value="cancel" class="ghost-button">取消</button><button id="saveFavoriteButton" type="button" class="primary-button">保存</button></div></div>
+    </form>
+  </dialog>
+
+  <dialog id="groupsDialog">
+    <form method="dialog" class="dialog-card small-dialog">
+      <div class="dialog-head">
+        <div><h2>收藏分组</h2><p>新建、查看或删除分组</p></div>
+        <button value="cancel" class="icon-button" aria-label="关闭"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+      </div>
+      <div id="groupsList" class="groups-list"></div>
+      <div class="inline-create"><input id="newGroupName" class="control" maxlength="30" placeholder="例如：亚洲常用"><button id="createGroupButton" type="button" class="primary-button">新建</button></div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status"></div>
+  <script src="mock-chrome.js"></script>
+  <script src="lib/js-yaml.min.js"></script>
+  <script src="lib/importer.js"></script>
+  <script src="lib/state-utils.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

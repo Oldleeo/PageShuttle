@@ -1,0 +1,75 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          "value=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Download pinned Xray-core
+        shell: pwsh
+        run: ./scripts/Get-Xray.ps1
+
+      - name: Restore and test
+        shell: pwsh
+        run: |
+          dotnet restore host/ChromeProxyHost.csproj --configfile NuGet.Config
+          dotnet restore updater/PageShuttleUpdater.csproj --configfile NuGet.Config
+          node tests/parser.test.cjs
+          node tests/state-utils.test.cjs
+          node tests/location-override.test.cjs
+
+      - name: Restore signing key
+        shell: pwsh
+        env:
+          UPDATE_SIGNING_PRIVATE_KEY_PEM: ${{ secrets.UPDATE_SIGNING_PRIVATE_KEY_PEM }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:UPDATE_SIGNING_PRIVATE_KEY_PEM)) { throw 'Missing UPDATE_SIGNING_PRIVATE_KEY_PEM secret' }
+          [IO.File]::WriteAllText("$env:RUNNER_TEMP\pageshuttle-signing.pem", $env:UPDATE_SIGNING_PRIVATE_KEY_PEM, [Text.UTF8Encoding]::new($false))
+
+      - name: Build signed package
+        shell: pwsh
+        run: ./scripts/Build-Release.ps1 -Version '${{ steps.version.outputs.value }}' -SigningKeyPath "$env:RUNNER_TEMP\pageshuttle-signing.pem"
+
+      - name: Verify package
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.value }}'
+          node tests/native-host.test.cjs "release\页梭-v$version\helper\ChromeProxyHost.exe"
+          & "release\页梭-v$version\helper\PageShuttleUpdater.exe" --self-test
+          ./tests/verify-update-signature.ps1 -PackagePath "release\PageShuttle-v$version-win-x64.zip" -ManifestPath 'release\update-manifest.json'
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = '${{ steps.version.outputs.value }}'
+          gh release create "v$version" `
+            "release\PageShuttle-v$version-win-x64.zip" `
+            "release\update-manifest.json" `
+            --title "页梭 v$version" `
+            --notes-file "release\release-notes.md"

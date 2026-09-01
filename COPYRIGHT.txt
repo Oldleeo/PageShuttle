@@ -1,0 +1,10 @@
+页梭·Chrome 专属代理
+
+Copyright © 2026 老李Oldlee
+作者主页：https://x.com/oldleeoo
+
+页梭自研源代码采用 MIT License 开源。使用、修改或分发时请保留版权和许可证声明。
+“页梭 / Page Shuttle”名称、品牌图形和老李Oldlee身份标识不得用于暗示作者为第三方衍生项目背书。
+
+发行包内的 Xray-core 适用 Mozilla Public License 2.0；js-yaml 适用 MIT License。
+详见同包附带的第三方许可证文件。

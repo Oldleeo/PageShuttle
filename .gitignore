@@ -1,0 +1,26 @@
+# Build outputs
+artifacts/
+release/
+**/bin/
+**/obj/
+
+# Local runtime and tooling
+.dotnet-cli/
+.dotnet_cli/
+.nuget_packages/
+*.user
+*.suo
+.vs/
+
+# Private signing material must never be committed
+secrets/
+*.private.pem
+*signing-private*
+
+# Xray is downloaded from its official release during CI/release builds
+third_party/xray/xray.exe
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+*.log
