@@ -91,12 +91,13 @@ $updateManifest = [ordered]@{
     $updateManifestPath,
     ($updateManifest | ConvertTo-Json -Depth 5),
     [Text.UTF8Encoding]::new($false))
-$releaseNotesMarkdown = @(
+$releaseNoteLines = @($ReleaseNotes | ForEach-Object { "- $_" })
+$releaseNotesMarkdown = (@(
     "# 页梭 v$Version",
     '',
     '## 本次更新',
-    '',
-    ($ReleaseNotes | ForEach-Object { "- $_" }),
+    ''
+) + $releaseNoteLines + @(
     '',
     '## 下载与安装',
     '',
@@ -105,7 +106,7 @@ $releaseNotesMarkdown = @(
     'v0.5.0 及之后的版本也可以在页梭设置中检查并安装签名更新。',
     '',
     '作者：[老李Oldlee](https://x.com/oldleeoo)'
-) -join "`n"
+)) -join "`n"
 [IO.File]::WriteAllText($releaseNotesPath, $releaseNotesMarkdown, [Text.UTF8Encoding]::new($false))
 Write-Host "PACKAGE=$package"
 Write-Host "ZIP=$zip"
