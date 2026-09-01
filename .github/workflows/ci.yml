@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  test:
+  windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -26,10 +26,79 @@ jobs:
           node tests/state-utils.test.cjs
           node tests/location-override.test.cjs
 
-      - name: Build native projects
+      - name: Restore runtime packs
         shell: pwsh
         run: |
-          dotnet restore host/ChromeProxyHost.csproj --configfile NuGet.Config
-          dotnet restore updater/PageShuttleUpdater.csproj --configfile NuGet.Config
-          dotnet build host/ChromeProxyHost.csproj -c Release --no-restore
-          dotnet build updater/PageShuttleUpdater.csproj -c Release --no-restore
+          dotnet restore host/ChromeProxyHost.csproj -r win-x64 --configfile NuGet.Config
+          dotnet restore updater/PageShuttleUpdater.csproj -r win-x64 --configfile NuGet.Config
+
+      - name: Download pinned Xray-core
+        shell: pwsh
+        run: ./scripts/Get-Xray.ps1 -RuntimeIdentifier win-x64
+
+      - name: Build and verify Windows package
+        shell: pwsh
+        run: |
+          ./scripts/Build-PlatformPackage.ps1 -Version '0.6.0' -RuntimeIdentifier win-x64
+          node tests/installer-upgrade.test.cjs "release\页梭-v0.6.0"
+          node tests/native-host.test.cjs "release\页梭-v0.6.0\helper\ChromeProxyHost.exe"
+          & "release\页梭-v0.6.0\helper\PageShuttleUpdater.exe" --self-test
+
+  macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runtime: osx-arm64
+            runner: macos-latest
+          - runtime: osx-x64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Restore runtime packs
+        shell: pwsh
+        run: |
+          dotnet restore host/ChromeProxyHost.csproj -r '${{ matrix.runtime }}' --configfile NuGet.Config
+          dotnet restore updater/PageShuttleUpdater.csproj -r '${{ matrix.runtime }}' --configfile NuGet.Config
+
+      - name: Download pinned Xray-core
+        shell: pwsh
+        run: ./scripts/Get-Xray.ps1 -RuntimeIdentifier '${{ matrix.runtime }}'
+
+      - name: Build macOS package
+        shell: pwsh
+        run: ./scripts/Build-PlatformPackage.ps1 -Version '0.6.0' -RuntimeIdentifier '${{ matrix.runtime }}'
+
+      - name: Verify macOS runtime and native messaging
+        shell: bash
+        run: |
+          set -euo pipefail
+          package="release/页梭-v0.6.0"
+          bash -n "$package/安装 页梭.command"
+          bash -n "$package/卸载 页梭.command"
+          file "$package/helper/ChromeProxyHost" "$package/helper/PageShuttleUpdater" "$package/helper/xray/xray"
+          node tests/native-host.test.cjs "$package/helper/ChromeProxyHost"
+          "$package/helper/PageShuttleUpdater" --self-test
+
+      - name: Verify isolated install and uninstall
+        shell: bash
+        run: |
+          set -euo pipefail
+          test_home="$RUNNER_TEMP/pageshuttle-home"
+          mkdir -p "$test_home"
+          HOME="$test_home" PAGESHUTTLE_NO_LAUNCH=1 bash "release/页梭-v0.6.0/安装 页梭.command"
+          test -x "$test_home/Library/Application Support/Oldlee/ChromeOnlyProxy/helper/ChromeProxyHost"
+          test -f "$test_home/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.oldlee.chrome_only_proxy.json"
+          HOME="$test_home" bash "release/页梭-v0.6.0/卸载 页梭.command"
+          test ! -e "$test_home/Library/Application Support/Oldlee/ChromeOnlyProxy"
+          test ! -e "$test_home/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.oldlee.chrome_only_proxy.json"

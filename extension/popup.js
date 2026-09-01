@@ -150,7 +150,7 @@ function renderSettings() {
 }
 
 function renderUpdate() {
-  const current = chrome.runtime.getManifest?.().version || "0.5.0";
+  const current = chrome.runtime.getManifest?.().version || "0.6.0";
   const update = state.updateInfo;
   $("#currentVersion").textContent = `当前 v${current}`;
   $("#installUpdateButton").hidden = !update?.available;

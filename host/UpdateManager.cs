@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using PageShuttle.Shared;
 
 namespace ChromeOnlyProxy.Host;
 
@@ -33,8 +34,8 @@ internal sealed class UpdateManager
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         var manifest = await JsonSerializer.DeserializeAsync<UpdateManifest>(stream, JsonOptions, cancellationToken)
             ?? throw new InvalidOperationException("更新清单为空");
-        ValidateManifest(manifest);
-        return new UpdateCheckResult(IsNewer(manifest.Version, CurrentVersion), CurrentVersion, manifest);
+        var package = ValidateManifest(manifest);
+        return new UpdateCheckResult(IsNewer(manifest.Version, CurrentVersion), CurrentVersion, manifest, package);
     }
 
     public async Task<UpdateInstallResult> PrepareInstallAsync(XrayManager manager, CancellationToken cancellationToken = default)
@@ -50,19 +51,22 @@ internal sealed class UpdateManager
 
         try
         {
-            await DownloadAsync(check.Manifest.PackageUrl, zipPath, cancellationToken);
+            await DownloadAsync(check.Package.PackageUrl, zipPath, cancellationToken);
             var hash = await ComputeSha256Async(zipPath, cancellationToken);
-            if (!hash.Equals(check.Manifest.Sha256, StringComparison.OrdinalIgnoreCase))
+            if (!hash.Equals(check.Package.Sha256, StringComparison.OrdinalIgnoreCase))
                 throw new CryptographicException("更新包 SHA-256 校验失败");
-            VerifySignature(hash, check.Manifest.Signature);
+            VerifySignature(hash, check.Package.Signature);
             ExtractSafely(zipPath, extractRoot);
             var packageRoot = FindPackageRoot(extractRoot);
+            EnsurePackageExecutables(packageRoot);
             ValidatePackage(packageRoot, check.Manifest.Version);
 
             manager.Stop();
-            var updaterSource = Path.Combine(packageRoot, "helper", "PageShuttleUpdater.exe");
-            var updaterCopy = Path.Combine(Path.GetTempPath(), $"PageShuttleUpdater-{Guid.NewGuid():N}.exe");
+            var updaterName = PlatformPaths.ExecutableName("PageShuttleUpdater");
+            var updaterSource = Path.Combine(packageRoot, "helper", updaterName);
+            var updaterCopy = Path.Combine(Path.GetTempPath(), $"PageShuttleUpdater-{Guid.NewGuid():N}{(OperatingSystem.IsWindows() ? ".exe" : string.Empty)}");
             File.Copy(updaterSource, updaterCopy, overwrite: false);
+            PlatformPaths.EnsureExecutable(updaterCopy);
 
             var plan = new UpdatePlan
             {
@@ -97,9 +101,7 @@ internal sealed class UpdateManager
 
     public object? ReadLastResult()
     {
-        var resultPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Oldlee", "ChromeOnlyProxy", "update-result.json");
+        var resultPath = Path.Combine(PlatformPaths.InstallRoot, "update-result.json");
         if (!File.Exists(resultPath)) return null;
         try
         {
@@ -124,9 +126,8 @@ internal sealed class UpdateManager
             throw new InvalidOperationException("页梭本地助手不在标准安装目录，请重新运行安装程序");
         var installRoot = Directory.GetParent(baseDirectory)?.FullName
             ?? throw new InvalidOperationException("无法确定页梭安装目录");
-        var expected = Path.GetFullPath(Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Oldlee", "ChromeOnlyProxy"));
-        if (!installRoot.Equals(expected, StringComparison.OrdinalIgnoreCase))
+        var expected = Path.GetFullPath(PlatformPaths.InstallRoot);
+        if (!installRoot.Equals(expected, PlatformPaths.PathComparison))
             throw new InvalidOperationException("更新仅支持页梭默认安装目录");
         return installRoot;
     }
@@ -185,7 +186,7 @@ internal sealed class UpdateManager
         foreach (var entry in archive.Entries)
         {
             var target = Path.GetFullPath(Path.Combine(destination, entry.FullName));
-            if (!target.StartsWith(destinationRoot, StringComparison.OrdinalIgnoreCase))
+            if (!target.StartsWith(destinationRoot, PlatformPaths.PathComparison))
                 throw new InvalidDataException("更新包包含非法路径");
             if (string.IsNullOrEmpty(entry.Name))
             {
@@ -213,25 +214,59 @@ internal sealed class UpdateManager
         var version = manifest.RootElement.GetProperty("version").GetString();
         if (!string.Equals(version, targetVersion, StringComparison.Ordinal))
             throw new InvalidDataException("更新包版本与更新清单不一致");
+        var helperName = PlatformPaths.ExecutableName("ChromeProxyHost");
+        var updaterName = PlatformPaths.ExecutableName("PageShuttleUpdater");
+        var xrayName = PlatformPaths.ExecutableName("xray");
         foreach (var required in new[]
         {
-            Path.Combine(packageRoot, "helper", "ChromeProxyHost.exe"),
-            Path.Combine(packageRoot, "helper", "PageShuttleUpdater.exe"),
-            Path.Combine(packageRoot, "helper", "xray", "xray.exe")
+            Path.Combine(packageRoot, "helper", helperName),
+            Path.Combine(packageRoot, "helper", updaterName),
+            Path.Combine(packageRoot, "helper", "xray", xrayName)
         })
         {
             if (!File.Exists(required)) throw new InvalidDataException($"更新包缺少 {Path.GetFileName(required)}");
         }
     }
 
-    private static void ValidateManifest(UpdateManifest manifest)
+    private static UpdatePackage ValidateManifest(UpdateManifest manifest)
     {
         _ = new Version(manifest.Version);
-        if (string.IsNullOrWhiteSpace(manifest.PackageUrl) || string.IsNullOrWhiteSpace(manifest.ReleasePage))
+        if (string.IsNullOrWhiteSpace(manifest.ReleasePage))
+            throw new InvalidDataException("更新清单缺少发布页面");
+
+        UpdatePackage package;
+        if (manifest.Packages.TryGetValue(PlatformPaths.RuntimeIdentifier, out var platformPackage))
+        {
+            package = platformPackage;
+        }
+        else if (PlatformPaths.RuntimeIdentifier == "win-x64")
+        {
+            package = new UpdatePackage
+            {
+                PackageUrl = manifest.PackageUrl,
+                Sha256 = manifest.Sha256,
+                Signature = manifest.Signature
+            };
+        }
+        else
+        {
+            throw new InvalidDataException($"更新清单不包含 {PlatformPaths.RuntimeIdentifier} 安装包");
+        }
+
+        if (string.IsNullOrWhiteSpace(package.PackageUrl))
             throw new InvalidDataException("更新清单缺少下载地址");
-        if (manifest.Sha256.Length != 64 || !manifest.Sha256.All(Uri.IsHexDigit))
+        if (package.Sha256.Length != 64 || !package.Sha256.All(Uri.IsHexDigit))
             throw new InvalidDataException("更新清单 SHA-256 无效");
-        if (string.IsNullOrWhiteSpace(manifest.Signature)) throw new InvalidDataException("更新清单缺少数字签名");
+        if (string.IsNullOrWhiteSpace(package.Signature)) throw new InvalidDataException("更新清单缺少数字签名");
+        return package;
+    }
+
+    private static void EnsurePackageExecutables(string packageRoot)
+    {
+        if (OperatingSystem.IsWindows()) return;
+        PlatformPaths.EnsureExecutable(Path.Combine(packageRoot, "helper", PlatformPaths.ExecutableName("ChromeProxyHost")));
+        PlatformPaths.EnsureExecutable(Path.Combine(packageRoot, "helper", PlatformPaths.ExecutableName("PageShuttleUpdater")));
+        PlatformPaths.EnsureExecutable(Path.Combine(packageRoot, "helper", "xray", PlatformPaths.ExecutableName("xray")));
     }
 
     private static void TryDeleteDirectory(string path)
@@ -240,7 +275,7 @@ internal sealed class UpdateManager
     }
 }
 
-internal sealed record UpdateCheckResult(bool Available, string CurrentVersion, UpdateManifest Manifest);
+internal sealed record UpdateCheckResult(bool Available, string CurrentVersion, UpdateManifest Manifest, UpdatePackage Package);
 internal sealed record UpdateInstallResult(bool Installing, string Version, string ReleasePage);
 
 internal sealed class UpdateManifest
@@ -252,6 +287,14 @@ internal sealed class UpdateManifest
     [JsonPropertyName("signature")] public string Signature { get; set; } = string.Empty;
     [JsonPropertyName("releasePage")] public string ReleasePage { get; set; } = string.Empty;
     [JsonPropertyName("notes")] public string[] Notes { get; set; } = [];
+    [JsonPropertyName("packages")] public Dictionary<string, UpdatePackage> Packages { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+}
+
+internal sealed class UpdatePackage
+{
+    [JsonPropertyName("packageUrl")] public string PackageUrl { get; set; } = string.Empty;
+    [JsonPropertyName("sha256")] public string Sha256 { get; set; } = string.Empty;
+    [JsonPropertyName("signature")] public string Signature { get; set; } = string.Empty;
 }
 
 internal sealed class UpdatePlan

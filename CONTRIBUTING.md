@@ -16,4 +16,6 @@ dotnet build host\ChromeProxyHost.csproj -c Release
 dotnet build updater\PageShuttleUpdater.csproj -c Release
 ```
 
+修改 macOS 安装器、进程管理或打包逻辑时，Pull Request 还必须通过 `osx-arm64` 与 `osx-x64` GitHub Actions 真机任务。
+
 Xray-core 与 js-yaml 是第三方项目，请不要把它们的源代码修改混入页梭自研代码。

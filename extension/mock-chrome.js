@@ -18,7 +18,7 @@
     exitLocation: { ip: "203.0.113.42", label: "新加坡 新加坡", country: "Singapore", countryCode: "SG", city: "Singapore", latitude: 1.3521, longitude: 103.8198, timezone: "Asia/Singapore" },
     locationError: "",
     locationOverride: { enabled: true, mode: "auto", latitude: 1.3521, longitude: 103.8198, accuracy: 25000, countryCode: "SG", locale: "en-SG", languages: ["en-SG"], timeZone: "Asia/Singapore", timezoneEnabled: true, languageEnabled: true, fontPrivacyMode: "strict", hiddenFonts: ["Microsoft YaHei", "PingFang SC", "MiSans"], reportedFonts: ["Arial", "Times New Roman"], fontFallback: "Arial" },
-    updateInfo: { available: true, currentVersion: "0.5.0", version: "0.5.1", releasePage: "https://github.com/Oldleeo/PageShuttle/releases", notes: ["新增安全远程更新", "更新失败自动回滚"], checkedAt: Date.now() },
+    updateInfo: { available: true, currentVersion: "0.6.0", version: "0.6.1", releasePage: "https://github.com/Oldleeo/PageShuttle/releases", notes: ["新增安全远程更新", "更新失败自动回滚"], checkedAt: Date.now() },
     updateError: "",
     lastError: ""
   };
@@ -26,7 +26,7 @@
   globalThis.chrome = {
     runtime: {
       id: "",
-      getManifest() { return { version: "0.5.0" }; },
+      getManifest() { return { version: "0.6.0" }; },
       onMessage: { addListener(listener) { listeners.push(listener); } },
       async sendMessage(message) {
         if (message.type === "GET_STATE") return { ok: true, state };

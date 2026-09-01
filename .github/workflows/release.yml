@@ -9,10 +9,128 @@ permissions:
   contents: write
 
 jobs:
-  build-release:
+  build-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          "value=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Restore and test
+        shell: pwsh
+        run: |
+          dotnet restore host/ChromeProxyHost.csproj -r win-x64 --configfile NuGet.Config
+          dotnet restore updater/PageShuttleUpdater.csproj -r win-x64 --configfile NuGet.Config
+          node tests/parser.test.cjs
+          node tests/state-utils.test.cjs
+          node tests/location-override.test.cjs
+
+      - name: Download pinned Xray-core
+        shell: pwsh
+        run: ./scripts/Get-Xray.ps1 -RuntimeIdentifier win-x64
+
+      - name: Build Windows package
+        shell: pwsh
+        run: ./scripts/Build-PlatformPackage.ps1 -Version '${{ steps.version.outputs.value }}' -RuntimeIdentifier win-x64
+
+      - name: Verify Windows package
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.value }}'
+          node tests/installer-upgrade.test.cjs "release\页梭-v$version"
+          node tests/native-host.test.cjs "release\页梭-v$version\helper\ChromeProxyHost.exe"
+          & "release\页梭-v$version\helper\PageShuttleUpdater.exe" --self-test
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: package-win-x64
+          path: release/PageShuttle-v${{ steps.version.outputs.value }}-win-x64.zip
+
+  build-macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runtime: osx-arm64
+            runner: macos-latest
+          - runtime: osx-x64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          "value=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Restore runtime packs
+        shell: pwsh
+        run: |
+          dotnet restore host/ChromeProxyHost.csproj -r '${{ matrix.runtime }}' --configfile NuGet.Config
+          dotnet restore updater/PageShuttleUpdater.csproj -r '${{ matrix.runtime }}' --configfile NuGet.Config
+
+      - name: Download pinned Xray-core
+        shell: pwsh
+        run: ./scripts/Get-Xray.ps1 -RuntimeIdentifier '${{ matrix.runtime }}'
+
+      - name: Build macOS package
+        shell: pwsh
+        run: ./scripts/Build-PlatformPackage.ps1 -Version '${{ steps.version.outputs.value }}' -RuntimeIdentifier '${{ matrix.runtime }}'
+
+      - name: Verify macOS package
+        shell: bash
+        run: |
+          set -euo pipefail
+          version='${{ steps.version.outputs.value }}'
+          package="release/页梭-v$version"
+          bash -n "$package/安装 页梭.command"
+          bash -n "$package/卸载 页梭.command"
+          node tests/native-host.test.cjs "$package/helper/ChromeProxyHost"
+          "$package/helper/PageShuttleUpdater" --self-test
+          test_home="$RUNNER_TEMP/pageshuttle-home"
+          mkdir -p "$test_home"
+          HOME="$test_home" PAGESHUTTLE_NO_LAUNCH=1 bash "$package/安装 页梭.command"
+          test -x "$test_home/Library/Application Support/Oldlee/ChromeOnlyProxy/helper/ChromeProxyHost"
+          HOME="$test_home" bash "$package/卸载 页梭.command"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: package-${{ matrix.runtime }}
+          path: release/PageShuttle-v${{ steps.version.outputs.value }}-${{ matrix.runtime }}.zip
+
+  publish:
+    needs: [build-windows, build-macos]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
 
       - name: Check signing secret
         id: signing
@@ -21,70 +139,42 @@ jobs:
           UPDATE_SIGNING_PRIVATE_KEY_PEM: ${{ secrets.UPDATE_SIGNING_PRIVATE_KEY_PEM }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:UPDATE_SIGNING_PRIVATE_KEY_PEM)) {
-            Write-Warning 'Release signing secret is not configured; automated release is skipped.'
-            "enabled=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          } else {
-            "enabled=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            throw 'UPDATE_SIGNING_PRIVATE_KEY_PEM secret is required for a public release.'
           }
 
-      - uses: actions/setup-dotnet@v6
-        if: steps.signing.outputs.enabled == 'true'
+      - uses: actions/download-artifact@v7
         with:
-          dotnet-version: 8.0.x
-
-      - uses: actions/setup-node@v7
-        if: steps.signing.outputs.enabled == 'true'
-        with:
-          node-version: 22
+          pattern: package-*
+          merge-multiple: true
+          path: release
 
       - name: Resolve version
-        if: steps.signing.outputs.enabled == 'true'
         id: version
         shell: pwsh
         run: |
           $version = "${{ github.ref_name }}".TrimStart('v')
           "value=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
-      - name: Download pinned Xray-core
-        if: steps.signing.outputs.enabled == 'true'
-        shell: pwsh
-        run: ./scripts/Get-Xray.ps1
-
-      - name: Restore and test
-        if: steps.signing.outputs.enabled == 'true'
-        shell: pwsh
-        run: |
-          dotnet restore host/ChromeProxyHost.csproj --configfile NuGet.Config
-          dotnet restore updater/PageShuttleUpdater.csproj --configfile NuGet.Config
-          node tests/parser.test.cjs
-          node tests/state-utils.test.cjs
-          node tests/location-override.test.cjs
-
       - name: Restore signing key
-        if: steps.signing.outputs.enabled == 'true'
         shell: pwsh
         env:
           UPDATE_SIGNING_PRIVATE_KEY_PEM: ${{ secrets.UPDATE_SIGNING_PRIVATE_KEY_PEM }}
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:UPDATE_SIGNING_PRIVATE_KEY_PEM)) { throw 'Missing UPDATE_SIGNING_PRIVATE_KEY_PEM secret' }
           [IO.File]::WriteAllText("$env:RUNNER_TEMP\pageshuttle-signing.pem", $env:UPDATE_SIGNING_PRIVATE_KEY_PEM, [Text.UTF8Encoding]::new($false))
 
-      - name: Build signed package
-        if: steps.signing.outputs.enabled == 'true'
+      - name: Sign platform packages and build update feed
         shell: pwsh
-        run: ./scripts/Build-Release.ps1 -Version '${{ steps.version.outputs.value }}' -SigningKeyPath "$env:RUNNER_TEMP\pageshuttle-signing.pem"
+        run: ./scripts/Sign-Release.ps1 -Version '${{ steps.version.outputs.value }}' -SigningKeyPath "$env:RUNNER_TEMP\pageshuttle-signing.pem"
 
-      - name: Verify package
-        if: steps.signing.outputs.enabled == 'true'
+      - name: Verify every signed package
         shell: pwsh
         run: |
           $version = '${{ steps.version.outputs.value }}'
-          node tests/native-host.test.cjs "release\页梭-v$version\helper\ChromeProxyHost.exe"
-          & "release\页梭-v$version\helper\PageShuttleUpdater.exe" --self-test
-          ./tests/verify-update-signature.ps1 -PackagePath "release\PageShuttle-v$version-win-x64.zip" -ManifestPath 'release\update-manifest.json'
+          foreach ($runtime in @('win-x64', 'osx-x64', 'osx-arm64')) {
+            ./tests/verify-update-signature.ps1 -PackagePath "release\PageShuttle-v$version-$runtime.zip" -ManifestPath 'release\update-manifest.json' -RuntimeIdentifier $runtime
+          }
 
       - name: Publish GitHub Release
-        if: steps.signing.outputs.enabled == 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -92,6 +182,8 @@ jobs:
           $version = '${{ steps.version.outputs.value }}'
           gh release create "v$version" `
             "release\PageShuttle-v$version-win-x64.zip" `
+            "release\PageShuttle-v$version-osx-x64.zip" `
+            "release\PageShuttle-v$version-osx-arm64.zip" `
             "release\update-manifest.json" `
             --title "页梭 v$version" `
             --notes-file "release\release-notes.md"

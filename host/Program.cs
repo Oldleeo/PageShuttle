@@ -33,8 +33,8 @@ internal static class Program
                 var exitAfterResponse = false;
                 object response = action switch
                 {
-                    "ping" => new { id, ok = true, version = "0.5.0" },
-                    "status" => new { id, ok = true, running = manager.IsRunning, port = manager.Port, version = "0.5.0", updateResult = updater.ReadLastResult() },
+                    "ping" => new { id, ok = true, version = UpdateManager.CurrentVersion, platform = PageShuttle.Shared.PlatformPaths.RuntimeIdentifier },
+                    "status" => new { id, ok = true, running = manager.IsRunning, port = manager.Port, version = UpdateManager.CurrentVersion, platform = PageShuttle.Shared.PlatformPaths.RuntimeIdentifier, updateResult = updater.ReadLastResult() },
                     "start" => await StartAsync(manager, id, root),
                     "stop" => Stop(manager, id),
                     "check_update" => await CheckUpdateAsync(updater, id),

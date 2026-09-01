@@ -5,6 +5,7 @@ const { spawn } = require("node:child_process");
 
 const executable = process.argv[2];
 const manifestPath = process.argv[3];
+const runtime = process.argv[4] || "win-x64";
 if (!executable || !manifestPath) throw new Error("Usage: node update-feed.test.cjs <ChromeProxyHost.exe> <update-manifest.json>");
 const expected = JSON.parse(fs.readFileSync(path.resolve(manifestPath), "utf8"));
 const host = spawn(path.resolve(executable), [], { stdio: ["pipe", "pipe", "pipe"], windowsHide: true });
@@ -35,7 +36,9 @@ function frame(message) {
   assert.equal(String(reply.currentVersion).split("+")[0], expected.version);
   assert.equal(reply.available, false);
   assert.equal(reply.update.version, expected.version);
-  assert.equal(reply.update.sha256, expected.sha256);
+  const expectedPackage = expected.packages?.[runtime] || expected;
+  const actualPackage = reply.update.packages?.[runtime] || reply.update;
+  assert.equal(actualPackage.sha256, expectedPackage.sha256);
   host.stdin.end();
   console.log("PUBLIC_UPDATE_FEED_OK");
   console.log(`VERSION=${reply.update.version}`);

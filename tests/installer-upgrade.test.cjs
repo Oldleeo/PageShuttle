@@ -92,7 +92,7 @@ function waitForExit(child, timeoutMs = 5000) {
   const upgrade = runInstaller();
   assert.equal(upgrade.status, 0, processFailure(upgrade));
   await waitForExit(xray);
-  assert.equal(JSON.parse(fs.readFileSync(path.join(testRoot, "extension", "manifest.json"), "utf8")).version, "0.5.0");
+  assert.equal(JSON.parse(fs.readFileSync(path.join(testRoot, "extension", "manifest.json"), "utf8")).version, "0.6.0");
   assert.equal(fs.existsSync(path.join(testRoot, "helper", "PageShuttleUpdater.exe")), true);
 
   console.log("INSTALLER_LOCKED_UPGRADE_OK");

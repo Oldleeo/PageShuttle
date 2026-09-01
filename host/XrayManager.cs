@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
+using PageShuttle.Shared;
 
 namespace ChromeOnlyProxy.Host;
 
@@ -29,9 +30,7 @@ internal sealed class XrayManager : IDisposable
         var xrayPath = ResolveXrayPath();
         var port = FindFreePort();
         var config = XrayConfigBuilder.Build(node, port);
-        var runtimeDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Oldlee", "ChromeOnlyProxy", "runtime");
+        var runtimeDirectory = Path.Combine(PlatformPaths.InstallRoot, "runtime");
         Directory.CreateDirectory(runtimeDirectory);
         var configPath = Path.Combine(runtimeDirectory, "xray-config.json");
         await File.WriteAllTextAsync(configPath, config, new UTF8Encoding(false));
@@ -62,8 +61,11 @@ internal sealed class XrayManager : IDisposable
         WindowsJob? job = null;
         try
         {
-            job = new WindowsJob();
-            job.AddProcess(process);
+            if (OperatingSystem.IsWindows())
+            {
+                job = new WindowsJob();
+                job.AddProcess(process);
+            }
         }
         catch
         {
@@ -123,9 +125,10 @@ internal sealed class XrayManager : IDisposable
 
     internal static string ResolveXrayPath()
     {
-        var bundled = Path.Combine(AppContext.BaseDirectory, "xray", "xray.exe");
+        var executable = PlatformPaths.ExecutableName("xray");
+        var bundled = Path.Combine(AppContext.BaseDirectory, "xray", executable);
         if (File.Exists(bundled)) return bundled;
-        throw new FileNotFoundException("未找到 xray\\xray.exe，请重新安装页梭");
+        throw new FileNotFoundException($"未找到 xray/{executable}，请重新安装页梭");
     }
 
     internal static async Task<ProcessResult> RunAndCaptureAsync(string executable, string arguments, int timeoutMs)

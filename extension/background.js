@@ -81,7 +81,7 @@ async function publishState(patch = {}) {
 function nativeError(reason) {
   const missing = /not found|not registered|native messaging host.*(?:missing|specified)|未找到|未注册/i.test(reason || "");
   return new PageShuttleError(
-    missing ? "尚未安装页梭本地助手，请先双击安装包中的「安装 页梭.cmd」" : (reason || "本地助手已断开"),
+    missing ? "尚未安装页梭本地助手，请运行安装包中对应系统的「安装 页梭」脚本" : (reason || "本地助手已断开"),
     missing ? "HELPER_NOT_INSTALLED" : "HELPER_ERROR"
   );
 }

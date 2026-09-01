@@ -7,6 +7,7 @@
     <a href="https://github.com/Oldleeo/PageShuttle/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/Oldleeo/PageShuttle/ci.yml?style=flat-square&label=tests"></a>
     <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-18a96b?style=flat-square"></a>
     <img alt="Windows" src="https://img.shields.io/badge/Windows-10%20%2F%2011-0078d4?style=flat-square">
+    <img alt="macOS" src="https://img.shields.io/badge/macOS-Intel%20%2F%20Apple%20Silicon-111111?style=flat-square">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Chrome-Manifest%20V3-fbbc04?style=flat-square">
   </p>
   <p>作者：<a href="https://x.com/oldleeoo"><strong>老李Oldlee</strong> · @oldleeoo</a></p>
@@ -14,9 +15,9 @@
 
 ---
 
-页梭是一个 Windows + Chrome 工具。扩展负责节点管理、Chrome 代理和网页环境一致性；本地助手只把 VLESS、VMess、Trojan、Shadowsocks 转换为 `127.0.0.1` 上的临时 SOCKS5 端口。
+页梭是一个支持 Windows 与 macOS 的 Chrome 专属代理工具。扩展负责节点管理、Chrome 代理和网页环境一致性；本地助手只把 VLESS、VMess、Trojan、Shadowsocks 转换为 `127.0.0.1` 上的临时 SOCKS5 端口。
 
-它不会修改 Windows 系统代理、WinHTTP、TUN/TAP、系统时间、系统语言、系统定位或防火墙规则。
+它不会修改 Windows 或 macOS 系统代理，不创建 TUN/TAP，不修改系统时间、系统语言、系统定位或防火墙规则。
 
 ## 界面预览
 
@@ -39,7 +40,7 @@
 
 > 网页环境功能用于减少浏览器环境与代理出口之间的明显矛盾，不承诺绕过所有指纹技术或网站风控。
 
-## 快速安装
+## Windows 安装
 
 1. 在 [Releases](https://github.com/Oldleeo/PageShuttle/releases/latest) 下载 `PageShuttle-v版本-win-x64.zip`。
 2. 完整解压，双击 `安装 页梭.cmd`，不需要管理员权限。
@@ -48,6 +49,14 @@
 5. 固定页梭，导入节点后点击“启动”。
 
 详细步骤见 [安装教程](docs/INSTALL.md) 和 [使用教程](docs/USER_GUIDE.md)。
+
+## macOS 安装
+
+1. Apple Silicon Mac 下载 `PageShuttle-v版本-osx-arm64.zip`；Intel Mac 下载 `PageShuttle-v版本-osx-x64.zip`。
+2. 完整解压，右键打开 `安装 页梭.command`。如果 macOS 阻止打开，请在“系统设置 → 隐私与安全性”中确认。
+3. 打开 `chrome://extensions`，开启“开发者模式”。
+4. 点击“加载已解压的扩展程序”，选择安装器显示的 `extension` 目录。
+5. 固定页梭，导入节点后点击“启动”。
 
 Chrome 不允许普通扩展在第一次使用时直接运行电脑中的安装脚本，因此首次安装需要用户手动确认。v0.5.0 之后的新版本可在扩展中一键更新。
 
@@ -62,7 +71,7 @@ Chrome 网页
 ```
 
 - Xray 只监听 `127.0.0.1`，局域网设备无法连接；
-- helper 不安装 Windows 服务，Chrome 连接结束后通过 Job Object 关闭子进程；
+- helper 不安装 Windows 服务或 macOS 后台服务；Chrome 连接结束时会停止页梭自己的 Xray 子进程；
 - 安装器按完整可执行文件路径停止页梭自身进程，不会关闭 v2rayN 的 Xray；
 - 节点与密码保存在 Chrome 本地扩展存储，不同步到作者服务器；
 - 更新包必须通过 SHA-256 与 RSA-3072/PSS 数字签名验证；
@@ -76,7 +85,7 @@ VLESS / VMess / Trojan 支持 TCP、WebSocket、gRPC、HTTPUpgrade、XHTTP，以
 
 ## 从源码构建
 
-环境：Windows、PowerShell 7、Node.js 22、.NET 8 SDK。
+环境：Windows 或 macOS、PowerShell 7、Node.js 22、.NET 8 SDK。
 
 ```powershell
 dotnet restore host\ChromeProxyHost.csproj --configfile NuGet.Config
@@ -86,9 +95,11 @@ node tests\parser.test.cjs
 node tests\state-utils.test.cjs
 node tests\location-override.test.cjs
 
-.\scripts\Get-Xray.ps1
-.\scripts\Build-Release.ps1
+.\scripts\Get-Xray.ps1 -RuntimeIdentifier win-x64
+.\scripts\Build-PlatformPackage.ps1 -Version 0.6.0 -RuntimeIdentifier win-x64
 ```
+
+macOS 可将运行时标识改为 `osx-arm64` 或 `osx-x64`。正式 Release 会分别在对应架构的 GitHub macOS Runner 上构建和测试。
 
 发布签名私钥不在仓库中。自行构建发行包时，需要通过 `-SigningKeyPath` 指定自己的 RSA 私钥。不要使用作者公钥为第三方构建背书。
 

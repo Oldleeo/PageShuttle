@@ -19,6 +19,7 @@ secrets/
 
 # Xray is downloaded from its official release during CI/release builds
 third_party/xray/xray.exe
+third_party/xray/xray
 
 # OS/editor files
 .DS_Store

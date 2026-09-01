@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using PageShuttle.Shared;
 
 namespace PageShuttle.Updater;
 
@@ -24,7 +25,7 @@ internal static class Program
         {
             try
             {
-                var fallback = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Oldlee", "ChromeOnlyProxy", "update-result.json");
+                var fallback = Path.Combine(PlatformPaths.InstallRoot, "update-result.json");
                 await WriteResultAsync(fallback, false, string.Empty, ex.Message);
             }
             catch { }
@@ -61,6 +62,7 @@ internal static class Program
             }
             Directory.Move(newExtension, extension);
             Directory.Move(newHelper, helper);
+            EnsureInstalledExecutables(helper);
             await WriteResultAsync(resultPath, true, plan.TargetVersion, "更新完成");
             PruneBackups(Path.Combine(plan.InstallRoot, "backups"), keep: 2);
             TryDeleteDirectory(plan.UpdateRoot);
@@ -78,18 +80,25 @@ internal static class Program
 
     private static void ValidatePlan(UpdatePlan plan)
     {
-        var expected = Path.GetFullPath(Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Oldlee", "ChromeOnlyProxy"));
+        var expected = Path.GetFullPath(PlatformPaths.InstallRoot);
         var installRoot = Path.GetFullPath(plan.InstallRoot);
-        if (!installRoot.Equals(expected, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("安装目录校验失败");
+        if (!installRoot.Equals(expected, PlatformPaths.PathComparison)) throw new InvalidOperationException("安装目录校验失败");
         var updateRoot = Path.GetFullPath(plan.UpdateRoot);
         var updatesBase = Path.GetFullPath(Path.Combine(expected, "updates")) + Path.DirectorySeparatorChar;
-        if (!updateRoot.StartsWith(updatesBase, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("更新暂存目录校验失败");
+        if (!updateRoot.StartsWith(updatesBase, PlatformPaths.PathComparison)) throw new InvalidOperationException("更新暂存目录校验失败");
         var packageRoot = Path.GetFullPath(plan.PackageRoot);
-        if (!packageRoot.StartsWith(updateRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("更新包目录校验失败");
+        if (!packageRoot.StartsWith(updateRoot + Path.DirectorySeparatorChar, PlatformPaths.PathComparison)) throw new InvalidOperationException("更新包目录校验失败");
         if (!File.Exists(Path.Combine(packageRoot, "extension", "manifest.json"))
-            || !File.Exists(Path.Combine(packageRoot, "helper", "ChromeProxyHost.exe")))
+            || !File.Exists(Path.Combine(packageRoot, "helper", PlatformPaths.ExecutableName("ChromeProxyHost"))))
             throw new InvalidDataException("更新包不完整");
+    }
+
+    private static void EnsureInstalledExecutables(string helperRoot)
+    {
+        if (OperatingSystem.IsWindows()) return;
+        PlatformPaths.EnsureExecutable(Path.Combine(helperRoot, PlatformPaths.ExecutableName("ChromeProxyHost")));
+        PlatformPaths.EnsureExecutable(Path.Combine(helperRoot, PlatformPaths.ExecutableName("PageShuttleUpdater")));
+        PlatformPaths.EnsureExecutable(Path.Combine(helperRoot, "xray", PlatformPaths.ExecutableName("xray")));
     }
 
     private static async Task WaitForParentAsync(int processId, TimeSpan timeout)

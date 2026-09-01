@@ -47,7 +47,7 @@ internal static class SelfTest
             Console.WriteLine($"CONFIGS={samples.Length}");
             Console.WriteLine("LISTEN=127.0.0.1_ONLY");
             Console.WriteLine("SYSTEM_PROXY_API=NOT_USED");
-            if (!UpdateManager.IsNewer("0.5.1", "0.5.0") || UpdateManager.IsNewer("0.5.0", "0.5.0"))
+            if (!UpdateManager.IsNewer("0.6.1", "0.6.0") || UpdateManager.IsNewer("0.6.0", "0.6.0"))
                 throw new InvalidOperationException("版本比较自测失败");
             Console.WriteLine("UPDATE_VERSION_CHECK_OK");
             return 0;
