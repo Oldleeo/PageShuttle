@@ -19,12 +19,13 @@ $asset = switch ($RuntimeIdentifier) {
 }
 $executableName = if ($RuntimeIdentifier -eq 'win-x64') { 'xray.exe' } else { 'xray' }
 $expectedArchiveSha256 = switch ($RuntimeIdentifier) {
+    'win-x64' { 'D004C39288CE9ADA487C6F398C7C545F7D749E44BDFDD59DBC9F865AFBA4E1AD' }
     'osx-x64' { 'F5B0471D3459EFF1B82E48AF0AEAC186ABCC3298210070AFBBBD8437A4E8B203' }
     'osx-arm64' { '2E93A67E8AA1936ECEFB307E120830FCBD4C643AB9B1C46A2D0838D5F8409EAF' }
     default { $null }
 }
 $expectedBinarySha256 = if ($RuntimeIdentifier -eq 'win-x64') {
-    'D004C39288CE9ADA487C6F398C7C545F7D749E44BDFDD59DBC9F865AFBA4E1AD'
+    '15C2D007954AC53BA69B80EC91242786B3C0B71D52649165B4CA1D5CC96EF8F1'
 } else { $null }
 $url = "https://github.com/XTLS/Xray-core/releases/download/$Version/$asset"
 
