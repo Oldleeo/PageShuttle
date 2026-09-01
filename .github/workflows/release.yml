@@ -14,15 +14,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check signing secret
+        id: signing
+        shell: pwsh
+        env:
+          UPDATE_SIGNING_PRIVATE_KEY_PEM: ${{ secrets.UPDATE_SIGNING_PRIVATE_KEY_PEM }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:UPDATE_SIGNING_PRIVATE_KEY_PEM)) {
+            Write-Warning 'Release signing secret is not configured; automated release is skipped.'
+            "enabled=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          } else {
+            "enabled=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          }
+
       - uses: actions/setup-dotnet@v4
+        if: steps.signing.outputs.enabled == 'true'
         with:
           dotnet-version: 8.0.x
 
       - uses: actions/setup-node@v4
+        if: steps.signing.outputs.enabled == 'true'
         with:
           node-version: 22
 
       - name: Resolve version
+        if: steps.signing.outputs.enabled == 'true'
         id: version
         shell: pwsh
         run: |
@@ -30,10 +46,12 @@ jobs:
           "value=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
       - name: Download pinned Xray-core
+        if: steps.signing.outputs.enabled == 'true'
         shell: pwsh
         run: ./scripts/Get-Xray.ps1
 
       - name: Restore and test
+        if: steps.signing.outputs.enabled == 'true'
         shell: pwsh
         run: |
           dotnet restore host/ChromeProxyHost.csproj --configfile NuGet.Config
@@ -43,6 +61,7 @@ jobs:
           node tests/location-override.test.cjs
 
       - name: Restore signing key
+        if: steps.signing.outputs.enabled == 'true'
         shell: pwsh
         env:
           UPDATE_SIGNING_PRIVATE_KEY_PEM: ${{ secrets.UPDATE_SIGNING_PRIVATE_KEY_PEM }}
@@ -51,10 +70,12 @@ jobs:
           [IO.File]::WriteAllText("$env:RUNNER_TEMP\pageshuttle-signing.pem", $env:UPDATE_SIGNING_PRIVATE_KEY_PEM, [Text.UTF8Encoding]::new($false))
 
       - name: Build signed package
+        if: steps.signing.outputs.enabled == 'true'
         shell: pwsh
         run: ./scripts/Build-Release.ps1 -Version '${{ steps.version.outputs.value }}' -SigningKeyPath "$env:RUNNER_TEMP\pageshuttle-signing.pem"
 
       - name: Verify package
+        if: steps.signing.outputs.enabled == 'true'
         shell: pwsh
         run: |
           $version = '${{ steps.version.outputs.value }}'
@@ -63,6 +84,7 @@ jobs:
           ./tests/verify-update-signature.ps1 -PackagePath "release\PageShuttle-v$version-win-x64.zip" -ManifestPath 'release\update-manifest.json'
 
       - name: Publish GitHub Release
+        if: steps.signing.outputs.enabled == 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
