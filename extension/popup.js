@@ -124,9 +124,8 @@ function renderSettings() {
   $("#manualCountryCode").value = state.settings.manualCountryCode ?? "";
   $("#manualTimezone").value = state.settings.manualTimezone ?? "";
   $("#manualLocale").value = state.settings.manualLocale ?? "";
-  $("#matchTimezone").checked = state.settings.matchTimezone !== false;
+  $("#matchTimezone").checked = state.settings.matchTimezone === true;
   $("#matchLanguage").checked = state.settings.matchLanguage !== false;
-  $("#fontPrivacyMode").value = state.settings.fontPrivacyMode || "strict";
   $("#manualLocationFields").hidden = state.settings.locationMode !== "manual";
   if (state.settings.locationMode === "auto" && state.exitLocation) {
     const environment = state.locationOverride || {};
@@ -140,9 +139,9 @@ function renderSettings() {
   } else if (state.locationError) {
     $("#locationDetail").textContent = state.locationError;
   } else if (state.settings.locationMode === "manual") {
-    $("#locationDetail").textContent = "手动环境会同时用于定位、网页时区、语言识别和字体指纹配置。";
+    $("#locationDetail").textContent = "手动环境会用于定位和网页语言；网页时间是否跟随由上方开关单独控制。";
   } else if (state.settings.locationMode === "off") {
-    $("#locationDetail").textContent = "代理仍可使用，但网页读取到原始定位、时区、语言和字体环境。";
+    $("#locationDetail").textContent = "代理仍可使用，但网页读取到原始定位、时区和语言环境。";
   } else {
     $("#locationDetail").textContent = "启动后按出口 IP 自动同步；IP 定位为城市级估算，可切换手动模式修正。";
   }
@@ -150,7 +149,7 @@ function renderSettings() {
 }
 
 function renderUpdate() {
-  const current = chrome.runtime.getManifest?.().version || "0.6.0";
+  const current = chrome.runtime.getManifest?.().version || "0.6.1";
   const update = state.updateInfo;
   $("#currentVersion").textContent = `当前 v${current}`;
   $("#installUpdateButton").hidden = !update?.available;
@@ -425,8 +424,7 @@ async function saveSettings() {
     manualTimezone: $("#manualTimezone").value.trim(),
     manualLocale: $("#manualLocale").value.trim(),
     matchTimezone: $("#matchTimezone").checked,
-    matchLanguage: $("#matchLanguage").checked,
-    fontPrivacyMode: $("#fontPrivacyMode").value
+    matchLanguage: $("#matchLanguage").checked
   };
   try {
     state = (await message({ type: "SAVE_SETTINGS", settings })).state;

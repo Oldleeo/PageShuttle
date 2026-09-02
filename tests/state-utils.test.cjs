@@ -20,6 +20,19 @@ assert.equal(removed.groups.length, 1);
 assert.equal(removed.nodes.find((node) => node.id === "sg").favoriteGroupId, null);
 assert.equal(removed.nodes.find((node) => node.id === "jp").favoriteGroupId, null);
 
+const migratedSettings = state.normalizeSettings({
+  matchTimezone: true,
+  fontPrivacyMode: "strict",
+  hiddenFonts: ["Microsoft YaHei"]
+}, { matchTimezone: false, matchLanguage: true });
+assert.equal(migratedSettings.matchTimezone, false);
+assert.equal(migratedSettings.settingsSchemaVersion, 2);
+assert.equal("fontPrivacyMode" in migratedSettings, false);
+assert.equal("hiddenFonts" in migratedSettings, false);
+
+const savedSettings = state.normalizeSettings({ settingsSchemaVersion: 2, matchTimezone: true }, { matchTimezone: false });
+assert.equal(savedSettings.matchTimezone, true);
+
 assert.deepEqual(state.validateManualLocation({ manualLatitude: "1.3521", manualLongitude: "103.8198", manualAccuracy: "500", manualLabel: "SG" }), {
   latitude: 1.3521,
   longitude: 103.8198,
@@ -49,7 +62,7 @@ const autoEnvironment = state.buildEnvironmentProfile({
   latitude: 40.7128, longitude: -74.006, accuracy: 25000, label: "United States New York",
   timezone: "America/New_York"
 }, {
-  matchTimezone: true, matchLanguage: true, fontPrivacyMode: "strict"
+  matchTimezone: true, matchLanguage: true
 }, "auto");
 assert.equal(autoEnvironment.countryCode, "US");
 assert.equal(autoEnvironment.locale, "en-US");
@@ -57,19 +70,18 @@ assert.deepEqual(autoEnvironment.languages, ["en-US"]);
 assert.equal(autoEnvironment.timeZone, "America/New_York");
 assert.equal(autoEnvironment.timezoneEnabled, true);
 assert.equal(autoEnvironment.languageEnabled, true);
-assert.equal(autoEnvironment.hiddenFonts.includes("Microsoft YaHei"), true);
-assert.equal(autoEnvironment.reportedFonts.includes("Arial"), true);
+assert.equal("fontPrivacyMode" in autoEnvironment, false);
+assert.equal("hiddenFonts" in autoEnvironment, false);
 
 const manualEnvironment = state.buildEnvironmentProfile(null, {
   manualLatitude: "35.6762", manualLongitude: "139.6503", manualAccuracy: "500", manualLabel: "东京",
   manualCountryCode: "JP", manualTimezone: "Asia/Tokyo", manualLocale: "ja-JP",
-  matchTimezone: false, matchLanguage: false, fontPrivacyMode: "balanced"
+  matchTimezone: false, matchLanguage: false
 }, "manual");
 assert.equal(manualEnvironment.timeZone, "");
 assert.equal(manualEnvironment.timezoneEnabled, false);
 assert.equal(manualEnvironment.languageEnabled, false);
-assert.equal(manualEnvironment.fontFallback, "Yu Gothic");
-assert.equal(manualEnvironment.fontPrivacyMode, "balanced");
+assert.equal("fontFallback" in manualEnvironment, false);
 
 console.log("SEARCH_FAVORITES_TESTS_OK");
 console.log("LOCATION_VALIDATION_TESTS_OK");

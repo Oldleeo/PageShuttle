@@ -25,6 +25,7 @@ jobs:
           node tests/parser.test.cjs
           node tests/state-utils.test.cjs
           node tests/location-override.test.cjs
+          node tests/performance-regression.test.cjs
 
       - name: Restore runtime packs
         shell: pwsh
@@ -39,10 +40,10 @@ jobs:
       - name: Build and verify Windows package
         shell: pwsh
         run: |
-          ./scripts/Build-PlatformPackage.ps1 -Version '0.6.0' -RuntimeIdentifier win-x64
-          node tests/installer-upgrade.test.cjs "release\页梭-v0.6.0"
-          node tests/native-host.test.cjs "release\页梭-v0.6.0\helper\ChromeProxyHost.exe"
-          & "release\页梭-v0.6.0\helper\PageShuttleUpdater.exe" --self-test
+          ./scripts/Build-PlatformPackage.ps1 -Version '0.6.1' -RuntimeIdentifier win-x64
+          node tests/installer-upgrade.test.cjs "release\页梭-v0.6.1"
+          node tests/native-host.test.cjs "release\页梭-v0.6.1\helper\ChromeProxyHost.exe"
+          & "release\页梭-v0.6.1\helper\PageShuttleUpdater.exe" --self-test
 
   macos:
     strategy:
@@ -77,13 +78,13 @@ jobs:
 
       - name: Build macOS package
         shell: pwsh
-        run: ./scripts/Build-PlatformPackage.ps1 -Version '0.6.0' -RuntimeIdentifier '${{ matrix.runtime }}'
+        run: ./scripts/Build-PlatformPackage.ps1 -Version '0.6.1' -RuntimeIdentifier '${{ matrix.runtime }}'
 
       - name: Verify macOS runtime and native messaging
         shell: bash
         run: |
           set -euo pipefail
-          package="release/页梭-v0.6.0"
+          package="release/页梭-v0.6.1"
           bash -n "$package/安装 页梭.command"
           bash -n "$package/卸载 页梭.command"
           file "$package/helper/ChromeProxyHost" "$package/helper/PageShuttleUpdater" "$package/helper/xray/xray"
@@ -96,9 +97,9 @@ jobs:
           set -euo pipefail
           test_home="$RUNNER_TEMP/pageshuttle-home"
           mkdir -p "$test_home"
-          HOME="$test_home" PAGESHUTTLE_NO_LAUNCH=1 bash "release/页梭-v0.6.0/安装 页梭.command"
+          HOME="$test_home" PAGESHUTTLE_NO_LAUNCH=1 bash "release/页梭-v0.6.1/安装 页梭.command"
           test -x "$test_home/Library/Application Support/Oldlee/ChromeOnlyProxy/helper/ChromeProxyHost"
           test -f "$test_home/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.oldlee.chrome_only_proxy.json"
-          HOME="$test_home" bash "release/页梭-v0.6.0/卸载 页梭.command"
+          HOME="$test_home" bash "release/页梭-v0.6.1/卸载 页梭.command"
           test ! -e "$test_home/Library/Application Support/Oldlee/ChromeOnlyProxy"
           test ! -e "$test_home/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.oldlee.chrome_only_proxy.json"

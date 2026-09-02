@@ -82,20 +82,14 @@
         <label class="field-label" for="manualTimezone">IANA 时区</label>
         <input id="manualTimezone" class="control" placeholder="Asia/Singapore">
       </div>
-      <label class="switch-row"><span><b>网页时间跟随国家</b><small>修改网页读取到的时区和本地时间</small></span><input id="matchTimezone" type="checkbox"><i></i></label>
+      <label class="switch-row"><span><b>网页时间跟随代理国家</b><small class="performance-warning">默认关闭；开启后复杂网页可能出现卡顿</small></span><input id="matchTimezone" type="checkbox"><i></i></label>
       <label class="switch-row"><span><b>网站识别为当地语言</b><small>页梭界面仍为中文，不修改 Chrome 菜单</small></span><input id="matchLanguage" type="checkbox"><i></i></label>
-      <label class="field-label" for="fontPrivacyMode">字体指纹保护</label>
-      <select id="fontPrivacyMode" class="control">
-        <option value="strict">严格：隐藏中文字体并覆盖尺寸探测</option>
-        <option value="balanced">均衡：隐藏字体 API 与 Canvas 探测</option>
-        <option value="off">关闭字体指纹保护</option>
-      </select>
       <p id="locationDetail" class="location-detail"></p>
-      <p class="privacy-note">网页显示字体保持原样；该功能只调整网站读取到的环境特征。复杂指纹仍可能通过其他信号推断真实系统。</p>
+      <p class="privacy-note">网页时间跟随会重写部分日期与时区接口，可能增加复杂网页的计算开销；仅在确有需要时开启。</p>
       <button id="saveSettingsButton" class="secondary-button full">保存设置</button>
 
       <div class="settings-separator"></div>
-      <div class="section-title"><h2>软件更新</h2><span id="currentVersion">当前 v0.6.0</span></div>
+      <div class="section-title"><h2>软件更新</h2><span id="currentVersion">当前 v0.6.1</span></div>
       <div class="update-card">
         <div class="update-copy">
           <b id="updateTitle">检查页梭新版本</b>
@@ -144,7 +138,7 @@
       <a href="https://x.com/oldleeoo" target="_blank" rel="noreferrer" title="访问老李Oldlee 的 X 主页">
         <span>© 2026 老李Oldlee</span><strong>@oldleeoo ↗</strong>
       </a>
-      <span>v0.6.0</span>
+      <span>v0.6.1</span>
     </footer>
   </div>
 

@@ -79,11 +79,7 @@ const profile = {
   languages: ["en-US", "zh-CN"],
   timeZone: "America/New_York",
   timezoneEnabled: true,
-  languageEnabled: true,
-  fontPrivacyMode: "strict",
-  hiddenFonts: ["Microsoft YaHei", "PingFang SC"],
-  reportedFonts: ["Arial", "Times New Roman"],
-  fontFallback: "Arial"
+  languageEnabled: true
 };
 context.profileJson = JSON.stringify(profile);
 vm.runInContext(`window.postMessage({ source: "page-shuttle-environment-bridge", type: "UPDATE", value: JSON.parse(profileJson) })`, context);
@@ -101,10 +97,10 @@ vm.runInContext(`window.postMessage({ source: "page-shuttle-environment-bridge",
   assert.equal(vm.runInContext("new Date('2026-01-01T12:00:00Z').getHours()", context), 7);
   assert.equal(vm.runInContext("new Date('2026-01-01T12:00:00Z').getTimezoneOffset()", context), 300);
 
-  assert.equal(vm.runInContext("new FontFaceSet().check('16px Microsoft YaHei')", context), false);
+  assert.equal(vm.runInContext("new FontFaceSet().check('16px Microsoft YaHei')", context), true);
   assert.equal(vm.runInContext("new FontFaceSet().check('16px Arial')", context), true);
-  assert.equal(vm.runInContext(`(() => { const c = new CanvasRenderingContext2D(); c.font = "16px Microsoft YaHei"; const width = c.measureText("测试").width; return width + ":" + c.font; })()`, context), "10:16px Microsoft YaHei");
-  assert.deepEqual(Array.from(await vm.runInContext("window.queryLocalFonts().then((fonts) => fonts.map((font) => font.family))", context)), ["Arial"]);
+  assert.equal(vm.runInContext(`(() => { const c = new CanvasRenderingContext2D(); c.font = "16px Microsoft YaHei"; const width = c.measureText("测试").width; return width + ":" + c.font; })()`, context), "18:16px Microsoft YaHei");
+  assert.deepEqual(Array.from(await vm.runInContext("window.queryLocalFonts().then((fonts) => fonts.map((font) => font.family))", context)), ["Microsoft YaHei", "Arial"]);
 
   vm.runInContext(`window.postMessage({ source: "page-shuttle-environment-bridge", type: "UPDATE", value: { enabled: false } })`, context);
   const restored = await vm.runInContext(`new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject))`, context);
@@ -113,6 +109,7 @@ vm.runInContext(`window.postMessage({ source: "page-shuttle-environment-bridge",
   assert.equal(vm.runInContext(`(() => { const c = new CanvasRenderingContext2D(); c.font = "16px Microsoft YaHei"; return c.measureText("测试").width; })()`, context), 18);
 
   console.log("WEB_ENVIRONMENT_OVERRIDE_OK");
+  console.log("FONT_APIS_UNMODIFIED_OK");
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;

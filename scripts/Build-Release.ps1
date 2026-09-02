@@ -1,11 +1,11 @@
 [CmdletBinding()]
 param(
-    [string]$Version = '0.6.0',
+    [string]$Version = '0.6.1',
     [string]$SigningKeyPath = (Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'Oldlee/PageShuttleSigning/update-signing-private.pem'),
     [string[]]$ReleaseNotes = @(
-        '新增 macOS 版本，同时支持 Apple Silicon 与 Intel Mac',
-        'macOS 版只修改当前 Chrome 用户配置，不修改系统代理',
-        '更新清单按操作系统与架构选择签名安装包'
+        '删除字体探测保护及其高频网页布局接口劫持，改善滚动与交互流畅度',
+        '网页时间跟随代理国家改为默认关闭的独立开关',
+        '界面明确提示开启网页时间跟随后可能增加复杂页面计算开销'
     )
 )
 

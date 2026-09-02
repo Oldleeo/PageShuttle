@@ -224,133 +224,8 @@
     }
   } catch {}
 
-  function normalizedFont(value) {
-    return String(value || "").replace(/["']/g, "").toLowerCase();
-  }
-
-  function fontList(name) {
-    return Array.isArray(config[name]) ? config[name] : [];
-  }
-
-  function mentionsFont(cssFont, names) {
-    const normalized = normalizedFont(cssFont);
-    return names.some((name) => normalized.includes(normalizedFont(name)));
-  }
-
-  function fontPrivacyEnabled() {
-    return environmentEnabled() && config.fontPrivacyMode !== "off";
-  }
-
-  function fallbackFont(cssFont) {
-    let result = String(cssFont || "");
-    const fallback = String(config.fontFallback || "Arial");
-    for (const name of [...fontList("hiddenFonts")].sort((a, b) => b.length - a.length)) {
-      result = result.replace(new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), fallback);
-    }
-    return result;
-  }
-
-  if (globalThis.FontFaceSet?.prototype?.check) {
-    const nativeFontCheck = FontFaceSet.prototype.check;
-    try {
-      Object.defineProperty(FontFaceSet.prototype, "check", {
-        configurable: true,
-        writable: true,
-        value(font, text) {
-          if (fontPrivacyEnabled()) {
-            if (mentionsFont(font, fontList("hiddenFonts"))) return false;
-            if (mentionsFont(font, fontList("reportedFonts"))) return true;
-          }
-          return nativeFontCheck.call(this, font, text);
-        }
-      });
-    } catch {}
-  }
-
-  if (typeof window.queryLocalFonts === "function") {
-    const nativeQueryLocalFonts = window.queryLocalFonts.bind(window);
-    try {
-      Object.defineProperty(window, "queryLocalFonts", {
-        configurable: true,
-        writable: true,
-        async value(...args) {
-          const fonts = await nativeQueryLocalFonts(...args);
-          if (!fontPrivacyEnabled()) return fonts;
-          return fonts.filter((font) => !mentionsFont(`${font.family} ${font.fullName} ${font.postscriptName}`, fontList("hiddenFonts")));
-        }
-      });
-    } catch {}
-  }
-
-  function patchCanvasContext(ContextType) {
-    if (!ContextType?.prototype?.measureText) return;
-    const nativeMeasureText = ContextType.prototype.measureText;
-    try {
-      Object.defineProperty(ContextType.prototype, "measureText", {
-        configurable: true,
-        writable: true,
-        value(text) {
-          const currentFont = this.font;
-          if (!fontPrivacyEnabled() || !mentionsFont(currentFont, fontList("hiddenFonts"))) return nativeMeasureText.call(this, text);
-          try {
-            this.font = fallbackFont(currentFont);
-            return nativeMeasureText.call(this, text);
-          } finally {
-            this.font = currentFont;
-          }
-        }
-      });
-    } catch {}
-  }
-  patchCanvasContext(globalThis.CanvasRenderingContext2D);
-  patchCanvasContext(globalThis.OffscreenCanvasRenderingContext2D);
-
-  const measuringElements = new WeakSet();
-  function withFallbackElementFont(element, callback) {
-    if (!fontPrivacyEnabled() || config.fontPrivacyMode !== "strict" || !element?.style || measuringElements.has(element)) return callback();
-    let computed;
-    try { computed = getComputedStyle(element).fontFamily; } catch { return callback(); }
-    if (!mentionsFont(computed, fontList("hiddenFonts"))) return callback();
-    measuringElements.add(element);
-    const oldValue = element.style.getPropertyValue("font-family");
-    const oldPriority = element.style.getPropertyPriority("font-family");
-    try {
-      element.style.setProperty("font-family", config.fontFallback || "Arial", "important");
-      return callback();
-    } finally {
-      if (oldValue) element.style.setProperty("font-family", oldValue, oldPriority);
-      else element.style.removeProperty("font-family");
-      measuringElements.delete(element);
-    }
-  }
-
-  function patchMetricGetter(Type, name) {
-    const descriptor = Type?.prototype && Object.getOwnPropertyDescriptor(Type.prototype, name);
-    if (!descriptor?.get) return;
-    try {
-      Object.defineProperty(Type.prototype, name, {
-        ...descriptor,
-        get() { return withFallbackElementFont(this, () => descriptor.get.call(this)); }
-      });
-    } catch {}
-  }
-  for (const name of ["offsetWidth", "offsetHeight"]) patchMetricGetter(globalThis.HTMLElement, name);
-  for (const name of ["clientWidth", "clientHeight", "scrollWidth", "scrollHeight"]) patchMetricGetter(globalThis.Element, name);
-  for (const name of ["getBoundingClientRect", "getClientRects"]) {
-    const nativeMethod = globalThis.Element?.prototype?.[name];
-    if (typeof nativeMethod !== "function") continue;
-    try {
-      Object.defineProperty(Element.prototype, name, {
-        configurable: true,
-        writable: true,
-        value(...args) { return withFallbackElementFont(this, () => nativeMethod.apply(this, args)); }
-      });
-    } catch {}
-  }
-
   function sanitizeIncoming(value) {
     if (!value || value.enabled !== true) return { enabled: false };
-    const privacy = ["off", "balanced", "strict"].includes(value.fontPrivacyMode) ? value.fontPrivacyMode : "strict";
     return {
       enabled: true,
       latitude: Number(value.latitude),
@@ -359,12 +234,8 @@
       locale: String(value.locale || "en-US").slice(0, 40),
       languages: (Array.isArray(value.languages) ? value.languages : [value.locale || "en-US"]).slice(0, 8).map((item) => String(item).slice(0, 40)),
       timeZone: String(value.timeZone || "UTC").slice(0, 80),
-      timezoneEnabled: value.timezoneEnabled !== false,
-      languageEnabled: value.languageEnabled !== false,
-      fontPrivacyMode: privacy,
-      hiddenFonts: (Array.isArray(value.hiddenFonts) ? value.hiddenFonts : []).slice(0, 80).map((item) => String(item).slice(0, 100)),
-      reportedFonts: (Array.isArray(value.reportedFonts) ? value.reportedFonts : []).slice(0, 40).map((item) => String(item).slice(0, 100)),
-      fontFallback: String(value.fontFallback || "Arial").slice(0, 100)
+      timezoneEnabled: value.timezoneEnabled === true,
+      languageEnabled: value.languageEnabled !== false
     };
   }
 

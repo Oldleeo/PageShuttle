@@ -15,9 +15,9 @@ const DEFAULT_SETTINGS = {
   manualCountryCode: "MY",
   manualTimezone: "Asia/Kuala_Lumpur",
   manualLocale: "ms-MY",
-  matchTimezone: true,
+  matchTimezone: false,
   matchLanguage: true,
-  fontPrivacyMode: "strict"
+  settingsSchemaVersion: 2
 };
 const STATE_KEYS = [
   "nodes", "activeNodeId", "selectedNodeId", "status", "settings", "lastError",
@@ -49,6 +49,8 @@ function storageSet(value) {
 async function getState() {
   const stored = await storageGet(STATE_KEYS);
   const nodes = Array.isArray(stored.nodes) ? stored.nodes : [];
+  const rawSettings = stored.settings || {};
+  const settings = PageShuttleState.normalizeSettings(rawSettings, DEFAULT_SETTINGS);
   const selectedNodeId = nodes.some((node) => node.id === stored.selectedNodeId)
     ? stored.selectedNodeId
     : (nodes.some((node) => node.id === stored.activeNodeId) ? stored.activeNodeId : (nodes.find((node) => node.supported)?.id || null));
@@ -57,7 +59,7 @@ async function getState() {
     activeNodeId: stored.activeNodeId || null,
     selectedNodeId,
     status: stored.status === "disconnected" ? "paused" : (stored.status || "paused"),
-    settings: { ...DEFAULT_SETTINGS, ...(stored.settings || {}) },
+    settings,
     lastError: stored.lastError || "",
     favoriteGroups: PageShuttleState.normalizeGroups(stored.favoriteGroups),
     exitLocation: stored.exitLocation || null,
@@ -369,7 +371,7 @@ function proxySettingsChanged(before, after) {
 
 async function saveSettings(incoming) {
   const state = await getState();
-  const settings = { ...DEFAULT_SETTINGS, ...(incoming || {}) };
+  const settings = PageShuttleState.normalizeSettings({ ...(incoming || {}), settingsSchemaVersion: 2 }, DEFAULT_SETTINGS);
   if (!["auto", "manual", "off"].includes(settings.locationMode)) settings.locationMode = "auto";
   if (settings.locationMode === "manual") PageShuttleState.buildEnvironmentProfile(null, settings, "manual");
   await storageSet({ settings });
@@ -467,7 +469,7 @@ async function initialize() {
   const session = await chrome.storage.session.get("currentProxyAuth");
   currentProxyAuth = session.currentProxyAuth || null;
   let state = await getState();
-  await storageSet({ favoriteGroups: state.favoriteGroups, selectedNodeId: state.selectedNodeId });
+  await storageSet({ favoriteGroups: state.favoriteGroups, selectedNodeId: state.selectedNodeId, settings: state.settings });
   if (state.status === "connected" && state.activeNodeId) {
     connectNode(state.activeNodeId).catch(() => {});
   } else {

@@ -9,6 +9,7 @@ const packageRoot = process.argv[2];
 if (!packageRoot) throw new Error("Usage: node installer-upgrade.test.cjs <package-root>");
 
 const resolvedPackage = path.resolve(packageRoot);
+const expectedVersion = JSON.parse(fs.readFileSync(path.join(resolvedPackage, "extension", "manifest.json"), "utf8")).version;
 const installer = path.join(resolvedPackage, "Install.ps1");
 const powershell = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
 const testRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pageshuttle-installer-"));
@@ -92,7 +93,7 @@ function waitForExit(child, timeoutMs = 5000) {
   const upgrade = runInstaller();
   assert.equal(upgrade.status, 0, processFailure(upgrade));
   await waitForExit(xray);
-  assert.equal(JSON.parse(fs.readFileSync(path.join(testRoot, "extension", "manifest.json"), "utf8")).version, "0.6.0");
+  assert.equal(JSON.parse(fs.readFileSync(path.join(testRoot, "extension", "manifest.json"), "utf8")).version, expectedVersion);
   assert.equal(fs.existsSync(path.join(testRoot, "helper", "PageShuttleUpdater.exe")), true);
 
   console.log("INSTALLER_LOCKED_UPGRADE_OK");

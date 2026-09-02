@@ -33,9 +33,9 @@
 - 全部网页代理或按域名分流；
 - 一键启动、暂停和出口 IP 检测；
 - WebRTC 非代理 UDP 保护；
-- 自动按代理出口 IP 同步网页可见坐标、国家 locale、IANA 时区和本地时间；
+- 自动按代理出口 IP 同步网页可见坐标和国家 locale；
+- 网页时间跟随代理国家为独立开关，默认关闭；开启可能增加复杂网页的计算开销；
 - 支持手动指定国家、经纬度、语言和时区；
-- 隐藏常见中文字体 API、Canvas 宽度与 DOM 尺寸探测，不改变实际显示字体；
 - GitHub Releases 签名更新、更新前备份和失败自动回滚。
 
 > 网页环境功能用于减少浏览器环境与代理出口之间的明显矛盾，不承诺绕过所有指纹技术或网站风控。
@@ -94,9 +94,10 @@ dotnet restore updater\PageShuttleUpdater.csproj --configfile NuGet.Config
 node tests\parser.test.cjs
 node tests\state-utils.test.cjs
 node tests\location-override.test.cjs
+node tests\performance-regression.test.cjs
 
 .\scripts\Get-Xray.ps1 -RuntimeIdentifier win-x64
-.\scripts\Build-PlatformPackage.ps1 -Version 0.6.0 -RuntimeIdentifier win-x64
+.\scripts\Build-PlatformPackage.ps1 -Version 0.6.1 -RuntimeIdentifier win-x64
 ```
 
 macOS 可将运行时标识改为 `osx-arm64` 或 `osx-x64`。正式 Release 会分别在对应架构的 GitHub macOS Runner 上构建和测试。

@@ -67,6 +67,7 @@ textarea.control { resize: vertical; }
 .switch-row span { display: flex; flex-direction: column; }
 .switch-row b { font-size: 11px; font-weight: 650; }
 .switch-row small { color: var(--muted); font-size: 9px; margin-top: 2px; }
+.switch-row small.performance-warning { color: #c86b16; font-weight: 650; }
 .switch-row input { display: none; }
 .switch-row i { position: relative; width: 34px; height: 20px; border-radius: 20px; background: #ccd2dd; transition: .18s; }
 .switch-row i::after { content: ""; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: white; left: 2px; top: 2px; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: .18s; }
@@ -188,5 +189,6 @@ dialog::backdrop { background: rgba(20,27,41,.45); backdrop-filter: blur(3px); }
   .file-drop, .tabs { background: #171c26; border-color: #3a4353; }
   .tab.active, .group-row { background: #2a3140; }
   .privacy-note { background: #1b2435; color: #98a4ba; }
+  .switch-row small.performance-warning { color: #f3a85d; }
   .update-card { background: linear-gradient(145deg,#192131,#1c2940); border-color: #33415a; }
 }

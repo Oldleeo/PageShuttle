@@ -10,7 +10,7 @@ body:
     id: version
     attributes:
       label: 页梭版本
-      placeholder: v0.6.0
+      placeholder: v0.6.1
     validations:
       required: true
   - type: input

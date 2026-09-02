@@ -37,6 +37,7 @@ jobs:
           node tests/parser.test.cjs
           node tests/state-utils.test.cjs
           node tests/location-override.test.cjs
+          node tests/performance-regression.test.cjs
 
       - name: Download pinned Xray-core
         shell: pwsh
@@ -139,7 +140,10 @@ jobs:
           UPDATE_SIGNING_PRIVATE_KEY_PEM: ${{ secrets.UPDATE_SIGNING_PRIVATE_KEY_PEM }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:UPDATE_SIGNING_PRIVATE_KEY_PEM)) {
-            throw 'UPDATE_SIGNING_PRIVATE_KEY_PEM secret is required for a public release.'
+            'available=false' | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            Write-Warning 'UPDATE_SIGNING_PRIVATE_KEY_PEM is not configured. Platform packages were verified, but signed publishing must be completed locally.'
+          } else {
+            'available=true' | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           }
 
       - uses: actions/download-artifact@v7
@@ -156,6 +160,7 @@ jobs:
           "value=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
       - name: Restore signing key
+        if: steps.signing.outputs.available == 'true'
         shell: pwsh
         env:
           UPDATE_SIGNING_PRIVATE_KEY_PEM: ${{ secrets.UPDATE_SIGNING_PRIVATE_KEY_PEM }}
@@ -163,10 +168,12 @@ jobs:
           [IO.File]::WriteAllText("$env:RUNNER_TEMP\pageshuttle-signing.pem", $env:UPDATE_SIGNING_PRIVATE_KEY_PEM, [Text.UTF8Encoding]::new($false))
 
       - name: Sign platform packages and build update feed
+        if: steps.signing.outputs.available == 'true'
         shell: pwsh
         run: ./scripts/Sign-Release.ps1 -Version '${{ steps.version.outputs.value }}' -SigningKeyPath "$env:RUNNER_TEMP\pageshuttle-signing.pem"
 
       - name: Verify every signed package
+        if: steps.signing.outputs.available == 'true'
         shell: pwsh
         run: |
           $version = '${{ steps.version.outputs.value }}'
@@ -175,6 +182,7 @@ jobs:
           }
 
       - name: Publish GitHub Release
+        if: steps.signing.outputs.available == 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}

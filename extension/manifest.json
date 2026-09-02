@@ -3,7 +3,7 @@
   "name": "页梭",
   "short_name": "页梭",
   "description": "页梭·Chrome 专属代理，支持常用节点导入、环境跟随、搜索和收藏。",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "homepage_url": "https://x.com/oldleeoo",
   "minimum_chrome_version": "120",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAttXiBWUGzd+pvYxMBD2pXBVNnO02EkhUJxoqBpnWFaBCza8XmommmOc64rBN73ey9QEN0Trs7ceChLzctreGztUNWRdHbb6fa93Lqv+WnsxgrNdW2rz8blZLMopP6oLfv9B96kMdfVkJzd4yVW8+C1ngkZzVMSPVqQ+U53+dRrnP0w7I7mFE0fbS3uYzS7kc89VMK61LbnR/QfEAVIGE1a3MA2HRPTydyWKoNn9WL7SoscpD3l/mSKPA2OUIEc/us6oIjZT658sMTKmswnRzu90p8CkQmHoRFTZ6pIuQW4CTWFb2qjIyrjQ7o9vavJIP1ksvTn0rPXvtC73V/WG5lwIDAQAB",

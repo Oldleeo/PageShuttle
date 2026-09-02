@@ -46,6 +46,18 @@
     });
   }
 
+  function normalizeSettings(value, defaults = {}) {
+    const source = value && typeof value === "object" ? value : {};
+    const settings = { ...defaults, ...source };
+    settings.matchTimezone = Number(source.settingsSchemaVersion || 0) >= 2 && source.matchTimezone === true;
+    settings.settingsSchemaVersion = 2;
+    delete settings.fontPrivacyMode;
+    delete settings.hiddenFonts;
+    delete settings.reportedFonts;
+    delete settings.fontFallback;
+    return settings;
+  }
+
   function validateManualLocation(settings) {
     const latitude = Number(settings.manualLatitude);
     const longitude = Number(settings.manualLongitude);
@@ -95,13 +107,6 @@
     TR: "tr-TR", TW: "zh-TW", UA: "uk-UA", US: "en-US", VN: "vi-VN", ZA: "en-ZA"
   });
 
-  const CHINESE_FONTS = Object.freeze([
-    "Microsoft YaHei", "Microsoft YaHei UI", "SimSun", "NSimSun", "SimHei", "FangSong", "KaiTi", "DengXian",
-    "PingFang SC", "PingFang TC", "Hiragino Sans GB", "STHeiti", "STSong", "MiSans", "HarmonyOS Sans",
-    "HarmonyOS Sans SC", "OPPO Sans", "Noto Sans CJK SC", "Noto Serif CJK SC", "Source Han Sans CN",
-    "Source Han Serif CN", "WenQuanYi Micro Hei"
-  ]);
-
   function localeForCountry(countryCode) {
     const code = String(countryCode || "").toUpperCase();
     if (COUNTRY_LOCALES[code]) return COUNTRY_LOCALES[code];
@@ -130,25 +135,6 @@
     } catch { throw new Error("时区无效，请使用 America/New_York、Asia/Tokyo 这类格式"); }
   }
 
-  function fontProfile(locale, countryCode) {
-    const language = String(locale || "en-US").split("-")[0].toLowerCase();
-    const isChineseRegion = ["CN", "HK", "MO", "TW"].includes(String(countryCode || "").toUpperCase());
-    const profiles = {
-      zh: { fallback: "Microsoft YaHei", reported: ["Microsoft YaHei", "SimSun", "DengXian", "Arial", "Times New Roman"] },
-      ja: { fallback: "Yu Gothic", reported: ["Yu Gothic", "Meiryo", "Arial", "Times New Roman"] },
-      ko: { fallback: "Malgun Gothic", reported: ["Malgun Gothic", "Arial", "Times New Roman"] },
-      ar: { fallback: "Tahoma", reported: ["Tahoma", "Arial", "Traditional Arabic", "Times New Roman"] },
-      th: { fallback: "Leelawadee UI", reported: ["Leelawadee UI", "Tahoma", "Arial"] },
-      hi: { fallback: "Nirmala UI", reported: ["Nirmala UI", "Mangal", "Arial"] }
-    };
-    const selected = profiles[language] || { fallback: "Arial", reported: ["Arial", "Times New Roman", "Segoe UI", "Tahoma", "Calibri"] };
-    return {
-      fontFallback: selected.fallback,
-      reportedFonts: selected.reported,
-      hiddenFonts: isChineseRegion || language === "zh" ? [] : [...CHINESE_FONTS]
-    };
-  }
-
   function buildEnvironmentProfile(location, settings, mode) {
     const manual = mode === "manual";
     const coordinates = manual ? validateManualLocation(settings) : {
@@ -164,9 +150,9 @@
     const locale = manual
       ? validateLocale(settings.manualLocale || localeForCountry(countryCode))
       : localeForCountry(countryCode);
-    const timeZone = settings.matchTimezone === false
-      ? ""
-      : (manual ? validateTimeZone(settings.manualTimezone) : validateTimeZone(location?.timezone));
+    const timeZone = settings.matchTimezone === true
+      ? (manual ? validateTimeZone(settings.manualTimezone) : validateTimeZone(location?.timezone))
+      : "";
     const languages = [locale];
     return {
       enabled: true,
@@ -179,10 +165,8 @@
       locale,
       languages,
       timeZone,
-      timezoneEnabled: settings.matchTimezone !== false,
+      timezoneEnabled: settings.matchTimezone === true,
       languageEnabled: settings.matchLanguage !== false,
-      fontPrivacyMode: ["off", "balanced", "strict"].includes(settings.fontPrivacyMode) ? settings.fontPrivacyMode : "strict",
-      ...fontProfile(locale, countryCode),
       updatedAt: Date.now()
     };
   }
@@ -192,12 +176,12 @@
     setNodeFavorite,
     removeFavoriteGroup,
     filterNodes,
+    normalizeSettings,
     validateManualLocation,
     normalizeGeoResponse,
     localeForCountry,
     validateLocale,
     validateTimeZone,
-    fontProfile,
     buildEnvironmentProfile
   };
 });

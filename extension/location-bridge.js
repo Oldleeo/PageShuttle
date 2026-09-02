@@ -19,12 +19,8 @@
         locale: String(value.locale || "en-US"),
         languages: safeArray(value.languages, 8),
         timeZone: String(value.timeZone || "UTC"),
-        timezoneEnabled: value.timezoneEnabled !== false,
-        languageEnabled: value.languageEnabled !== false,
-        fontPrivacyMode: String(value.fontPrivacyMode || "strict"),
-        hiddenFonts: safeArray(value.hiddenFonts, 80),
-        reportedFonts: safeArray(value.reportedFonts, 40),
-        fontFallback: String(value.fontFallback || "Arial")
+        timezoneEnabled: value.timezoneEnabled === true,
+        languageEnabled: value.languageEnabled !== false
       }
     }, "*");
   }
